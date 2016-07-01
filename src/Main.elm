@@ -8,6 +8,7 @@ import Element
 import Collage exposing (..)
 import Color exposing (..)
 import Mouse exposing (Position)
+import Time exposing (Time, second, millisecond)
 
 
 width =
@@ -23,11 +24,11 @@ height =
 
 
 type alias Model =
-    { position : Position }
+    { position : Position, clicked : Time }
 
 
 init =
-    ( { position = Position (truncate <| width / 2) (truncate <| height / 2) }, Cmd.none )
+    ( { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0 }, Cmd.none )
 
 
 
@@ -38,20 +39,37 @@ type Msg
     = -- TODO: Add more Messages
       Reset
     | MouseMove Position
+    | Click
+    | Tick Time
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ position } as model) =
+update msg ({ clicked } as model) =
     case msg of
         Reset ->
-            ( model, Cmd.none )
+            init
 
         MouseMove pos ->
             ( { model | position = pos }, Cmd.none )
 
+        Click ->
+            ( { model | clicked = (millisecond * 300) }, Cmd.none )
+
+        Tick _ ->
+            ( { model
+                | clicked =
+                    (if clicked > 0 then
+                        clicked - 100
+                     else
+                        clicked
+                    )
+              }
+            , Cmd.none
+            )
+
 
 subscriptions _ =
-    Sub.none
+    Time.every (millisecond * 100) Tick
 
 
 
@@ -59,15 +77,23 @@ subscriptions _ =
 
 
 view : Model -> Html Msg
-view ({ position } as model) =
+view ({ position, clicked } as model) =
     div []
         [ h1 [] [ Html.text "Super Spotlight" ]
-        , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition) ]
+        , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click ]
             [ Element.toHtml
                 <| collage width
                     height
                     [ filled black (rect width height)
-                    , move (correct_offset <| pos_to_float position) (filled white (circle 50))
+                    , move (correct_offset <| pos_to_float position)
+                        (filled
+                            (if clicked > 0 then
+                                red
+                             else
+                                white
+                            )
+                            (circle 50)
+                        )
                     ]
             ]
         ]
