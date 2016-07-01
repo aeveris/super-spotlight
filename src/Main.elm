@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
+import Html.Attributes exposing (..)
 import Html.App
 import Html.Events exposing (..)
 import Json.Decode exposing (Decoder, (:=))
@@ -75,12 +76,17 @@ subscriptions _ =
 
 -- VIEW
 
+(=>) = (,)
+
+px : Int -> String
+px s = toString s ++ "px"
+
 
 view : Model -> Html Msg
 view ({ position, clicked } as model) =
     div []
         [ h1 [] [ Html.text "Super Spotlight" ]
-        , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click ]
+        , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
             [ Element.toHtml
                 <| collage width
                     height
