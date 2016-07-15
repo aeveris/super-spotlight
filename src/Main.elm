@@ -7,9 +7,16 @@ import Html.Events exposing (..)
 import Json.Decode exposing (Decoder, (:=))
 import Element
 import Collage exposing (..)
+import Text exposing (..)
 import Color exposing (..)
 import Mouse exposing (Position)
 import Time exposing (Time, second, millisecond)
+import List exposing (map)
+
+
+-- OWN MODULES
+
+import Objects exposing (..)
 
 
 width =
@@ -24,12 +31,24 @@ height =
 -- MODEL
 
 
-type alias Model =
-    { position : Position, clicked : Time }
+type Model
+    = PreGame
+    | InGame GameModel
+    | PostGame
 
 
+type alias GameModel =
+    { position : Position, clicked : Time, objects : List Object, nextSpawn : Time }
+
+
+init : Model
 init =
-    ( { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0 }, Cmd.none )
+    PreGame
+
+
+initGameModel : Model
+initGameModel =
+    InGame { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0, objects = [], nextSpawn = 0 }
 
 
 
@@ -45,28 +64,47 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ clicked } as model) =
-    case msg of
-        Reset ->
-            init
+update msg model =
+    case model of
+        PreGame ->
+            case msg of
+                Click ->
+                    ( initGameModel, Cmd.none )
 
-        MouseMove pos ->
-            ( { model | position = pos }, Cmd.none )
+                _ ->
+                    ( PreGame, Cmd.none )
 
-        Click ->
-            ( { model | clicked = (millisecond * 300) }, Cmd.none )
+        InGame ({ clicked } as model) ->
+            case msg of
+                Reset ->
+                    ( init, Cmd.none )
 
-        Tick _ ->
-            ( { model
-                | clicked =
-                    (if clicked > 0 then
-                        clicked - 100
-                     else
-                        clicked
+                MouseMove pos ->
+                    ( InGame { model | position = pos }, Cmd.none )
+
+                Click ->
+                    ( InGame { model | clicked = (millisecond * 300) }, Cmd.none )
+
+                Tick _ ->
+                    ( InGame
+                        { model
+                            | clicked =
+                                (if clicked > 0 then
+                                    clicked - 100
+                                 else
+                                    clicked
+                                )
+                        }
+                    , Cmd.none
                     )
-              }
-            , Cmd.none
-            )
+
+        PostGame ->
+            case msg of
+                Click ->
+                    ( initGameModel, Cmd.none )
+
+                _ ->
+                    ( PostGame, Cmd.none )
 
 
 subscriptions _ =
@@ -76,39 +114,69 @@ subscriptions _ =
 
 -- VIEW
 
-(=>) = (,)
+
+(=>) =
+    (,)
+
 
 px : Int -> String
-px s = toString s ++ "px"
+px s =
+    toString s ++ "px"
 
 
 view : Model -> Html Msg
-view ({ position, clicked } as model) =
-    div []
-        [ h1 [] [ Html.text "Super Spotlight" ]
-        , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
-            [ Element.toHtml
-                <| collage width
-                    height
-                    [ filled black (rect width height)
-                    , move (correct_offset <| pos_to_float position)
-                        (filled
-                            (if clicked > 0 then
-                                red
-                             else
-                                white
-                            )
-                            (circle 50)
-                        )
+view model =
+    case model of
+        PreGame ->
+            div []
+                [ h1 [] [ Html.text "Super Spotlight" ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                    [ Element.toHtml <|
+                        collage width
+                            height
+                            [ filled black (rect width height), Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to start")) ]
                     ]
-            ]
-        ]
+                ]
+
+        InGame ({ position, clicked, objects } as model) ->
+            div []
+                [ h1 [] [ Html.text "Super Spotlight" ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                    [ Element.toHtml <|
+                        collage width
+                            height
+                            ([ filled black (rect width height)
+                             , move (correctOffset <| posToFloat position)
+                                (filled
+                                    (if clicked > 0 then
+                                        red
+                                     else
+                                        white
+                                    )
+                                    (circle 50)
+                                )
+                             ]
+                                ++ map (\{ form } -> form) objects
+                            )
+                    ]
+                ]
+
+        PostGame ->
+            div []
+                [ h1 [] [ Html.text "Super Spotlight" ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                    [ Element.toHtml <|
+                        collage width
+                            height
+                            [ filled black (rect width height), Collage.text <| Text.height 40 (color white <| fromString "Game Over"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again")) ]
+                    ]
+                ]
 
 
 main : Program Never
 main =
     Html.App.program
-        { init = init
+        { init = ( init, Cmd.none )
         , view = view
         , update = update
         , subscriptions = subscriptions
@@ -119,13 +187,13 @@ main =
 -- UTILITY
 
 
-pos_to_float : Position -> ( Float, Float )
-pos_to_float p =
+posToFloat : Position -> ( Float, Float )
+posToFloat p =
     ( toFloat <| p.x, toFloat <| -p.y )
 
 
-correct_offset : ( Float, Float ) -> ( Float, Float )
-correct_offset =
+correctOffset : ( Float, Float ) -> ( Float, Float )
+correctOffset =
     (\( x, y ) -> ( x - width / 2, y + height / 2 ))
 
 
