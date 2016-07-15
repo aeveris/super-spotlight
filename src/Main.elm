@@ -11,8 +11,8 @@ import Text exposing (..)
 import Color exposing (..)
 import Mouse exposing (Position)
 import Time exposing (Time, second, millisecond)
-import List exposing (map, filter)
 import Random
+import List exposing (map, any, head, tail, filter)
 
 
 -- OWN MODULES
@@ -76,7 +76,7 @@ update msg model =
                 _ ->
                     ( PreGame, Cmd.none )
 
-        InGame ({ clicked } as model) ->
+        InGame ({ clicked, position, objects } as model) ->
             case msg of
                 Reset ->
                     ( init, Cmd.none )
@@ -85,7 +85,16 @@ update msg model =
                     ( InGame { model | position = pos }, Cmd.none )
 
                 Click ->
-                    ( InGame { model | clicked = (millisecond * 300) }, Cmd.none )
+                    ( InGame
+                        { model
+                            | clicked =
+                                if any rightDist (listDist (correctOffset (posToFloat position)) objects) then
+                                    (millisecond * 300)
+                                else
+                                    clicked
+                        }
+                    , Cmd.none
+                    )
 
                 Tick _ ->
                     tickUpdate model
@@ -227,3 +236,36 @@ randPos =
 newRandObject : Cmd Msg
 newRandObject =
     Random.generate NewObject randPos
+
+
+distance : ( Float, Float ) -> ( Float, Float ) -> Float
+distance ( x1, y1 ) ( x2, y2 ) =
+    sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
+
+
+objDist : ( Float, Float ) -> Object -> Float
+objDist ( x, y ) obj =
+    distance ( x, y ) obj.pos
+
+
+rightDist : Float -> Bool
+rightDist a =
+    if a < 25 then
+        True
+    else
+        False
+
+
+listDist : ( Float, Float ) -> List Object -> List Float
+listDist pos obj =
+    case head obj of
+        Nothing ->
+            []
+
+        Just o ->
+            case tail obj of
+                Just t ->
+                    [ objDist pos o ] ++ listDist pos t
+
+                Nothing ->
+                    []

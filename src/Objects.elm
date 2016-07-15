@@ -11,7 +11,7 @@ type alias Object =
 
 foo : Form
 foo =
-    scale 4 (filled red (rect 10 10))
+    (filled black (rect 40 40))
 
 
 makeObject : ( Float, Float ) -> Form -> Object
