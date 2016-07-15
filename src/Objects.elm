@@ -10,10 +10,10 @@ type alias Object =
 
 
 foo : Form
-foo = scale 4 (filled black (rect 10 10))
-
-makeObject : (Float, Float) -> Form -> Object
-makeObject (x, y) f = Object (x-20, y-20) (6000 * millisecond) f
+foo =
+    scale 4 (filled red (rect 10 10))
 
 
-
+makeObject : ( Float, Float ) -> Form -> Object
+makeObject pos f =
+    Object pos (6000 * millisecond) (move pos f)

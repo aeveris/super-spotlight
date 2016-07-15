@@ -11,7 +11,8 @@ import Text exposing (..)
 import Color exposing (..)
 import Mouse exposing (Position)
 import Time exposing (Time, second, millisecond)
-import List exposing (map)
+import List exposing (map, filter)
+import Random
 
 
 -- OWN MODULES
@@ -48,7 +49,7 @@ init =
 
 initGameModel : Model
 initGameModel =
-    InGame { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0, objects = [], nextSpawn = 0 }
+    InGame { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0, objects = [], nextSpawn = 5000 * millisecond }
 
 
 
@@ -61,6 +62,7 @@ type Msg
     | MouseMove Position
     | Click
     | Tick Time
+    | NewObject ( Float, Float )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -69,7 +71,7 @@ update msg model =
         PreGame ->
             case msg of
                 Click ->
-                    ( initGameModel, Cmd.none )
+                    ( initGameModel, newRandObject )
 
                 _ ->
                     ( PreGame, Cmd.none )
@@ -86,17 +88,10 @@ update msg model =
                     ( InGame { model | clicked = (millisecond * 300) }, Cmd.none )
 
                 Tick _ ->
-                    ( InGame
-                        { model
-                            | clicked =
-                                (if clicked > 0 then
-                                    clicked - 100
-                                 else
-                                    clicked
-                                )
-                        }
-                    , Cmd.none
-                    )
+                    tickUpdate model
+
+                NewObject pos ->
+                    ( InGame { model | objects = makeObject pos foo :: model.objects }, Cmd.none )
 
         PostGame ->
             case msg of
@@ -105,6 +100,26 @@ update msg model =
 
                 _ ->
                     ( PostGame, Cmd.none )
+
+
+tickUpdate : GameModel -> ( Model, Cmd Msg )
+tickUpdate ({ clicked, objects, nextSpawn } as gm) =
+    let
+        updateTime : Time -> Time
+        updateTime tm =
+            if tm > 0 then
+                tm - 100 * millisecond
+            else
+                tm
+
+        updateObjects : List Object -> List Object
+        updateObjects =
+            filter (\obj -> obj.ttl > 0) << map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
+    in
+        if nextSpawn == 0 then
+            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects, nextSpawn = 3000 * millisecond }, newRandObject )
+        else
+            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects, nextSpawn = nextSpawn - 100 * millisecond }, Cmd.none )
 
 
 subscriptions _ =
@@ -202,3 +217,13 @@ offsetPosition =
     Json.Decode.object2 Position
         ("offsetX" := Json.Decode.int)
         ("offsetY" := Json.Decode.int)
+
+
+randPos : Random.Generator ( Float, Float )
+randPos =
+    Random.pair (Random.float (-width / 2 + 50) (width / 2 - 50)) (Random.float (-height / 2 + 50) (height / 2 - 50))
+
+
+newRandObject : Cmd Msg
+newRandObject =
+    Random.generate NewObject randPos
