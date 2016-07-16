@@ -163,18 +163,29 @@ view model =
         PreGame ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height ] ]
+                , div
+                    [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
+                    , on "click" (Json.Decode.map Click offsetPosition)
+                    , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height ]
+                    ]
                     [ Element.toHtml <|
                         collage Utility.width
                             Utility.height
-                            [ filled black (rect Utility.width Utility.height), Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to start")) ]
+                            [ filled black (rect Utility.width Utility.height)
+                            , Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
+                            , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+                            ]
                     ]
                 ]
 
         InGame ({ position, clicked, objects, spawnNotification } as model) ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ] ]
+                , div
+                    [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
+                    , on "click" (Json.Decode.map Click offsetPosition)
+                    , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ]
+                    ]
                     [ Element.toHtml <|
                         collage Utility.width
                             Utility.height
@@ -203,11 +214,19 @@ view model =
         PostGame ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "Utility.width" => px Utility.width, "Utility.height" => px Utility.height ] ]
+                , div
+                    [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
+                    , on "click" (Json.Decode.map Click offsetPosition)
+                    , Html.Attributes.style [ "Utility.width" => px Utility.width, "Utility.height" => px Utility.height ]
+                    ]
                     [ Element.toHtml <|
                         collage Utility.width
                             Utility.height
-                            [ filled black (rect Utility.width Utility.height), Collage.text <| Text.height 40 (color white <| fromString "Game Over"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again")) ]
+                            [ filled black (rect Utility.width Utility.height)
+                            , Collage.text <|
+                                Text.height 40 (color white <| fromString "Game Over")
+                            , moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again"))
+                            ]
                     ]
                 ]
 
