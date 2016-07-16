@@ -15,21 +15,14 @@ import Random
 import List exposing (map, any, head, tail, filter)
 
 
--- OWN MODULES
+-- CUSTOM MODULES
 
 import Objects exposing (..)
-
-
-width =
-    1000
-
-
-height =
-    800
-
+import Utility exposing (..)
 
 
 -- MODEL
+-- Canvas dimensions can be set in Utility.elm
 
 
 type Model
@@ -39,7 +32,7 @@ type Model
 
 
 type alias GameModel =
-    { position : Position, clicked : Time, objects : List Object, nextSpawn : Time }
+    { position : Position, clicked : Time, objects : List Object, nextSpawn : Time, score : Int, lives : Int }
 
 
 init : Model
@@ -47,9 +40,9 @@ init =
     PreGame
 
 
-initGameModel : Model
-initGameModel =
-    InGame { position = Position (truncate <| width / 2) (truncate <| height / 2), clicked = 0, objects = [], nextSpawn = 5000 * millisecond }
+initGameModel : Position -> Model
+initGameModel pos =
+    InGame { position = pos, clicked = 0, objects = [], nextSpawn = 5000 * millisecond, score = 0, lives = 5 }
 
 
 
@@ -60,9 +53,10 @@ type Msg
     = -- TODO: Add more Messages
       Reset
     | MouseMove Position
-    | Click
+    | Click Position
     | Tick Time
     | NewObject ( Float, Float )
+    | NextSpawnTime Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -70,8 +64,8 @@ update msg model =
     case model of
         PreGame ->
             case msg of
-                Click ->
-                    ( initGameModel, newRandObject )
+                Click pos ->
+                    ( initGameModel pos, newRandObject )
 
                 _ ->
                     ( PreGame, Cmd.none )
@@ -84,7 +78,7 @@ update msg model =
                 MouseMove pos ->
                     ( InGame { model | position = pos }, Cmd.none )
 
-                Click ->
+                Click _ ->
                     ( InGame
                         { model
                             | clicked =
@@ -102,10 +96,13 @@ update msg model =
                 NewObject pos ->
                     ( InGame { model | objects = makeObject pos foo :: model.objects }, Cmd.none )
 
+                NextSpawnTime tm ->
+                    ( InGame { model | nextSpawn = toFloat tm * second }, Cmd.none )
+
         PostGame ->
             case msg of
-                Click ->
-                    ( initGameModel, Cmd.none )
+                Click pos ->
+                    ( initGameModel pos, Cmd.none )
 
                 _ ->
                     ( PostGame, Cmd.none )
@@ -126,26 +123,23 @@ tickUpdate ({ clicked, objects, nextSpawn } as gm) =
             filter (\obj -> obj.ttl > 0) << map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
     in
         if nextSpawn == 0 then
-            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects, nextSpawn = 3000 * millisecond }, newRandObject )
+            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects }, Cmd.batch [ newRandObject, newSpawnTime ] )
         else
             ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects, nextSpawn = nextSpawn - 100 * millisecond }, Cmd.none )
 
 
-subscriptions _ =
-    Time.every (millisecond * 100) Tick
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    case model of
+        InGame _ ->
+            Time.every (millisecond * 100) Tick
+
+        _ ->
+            Sub.none
 
 
 
 -- VIEW
-
-
-(=>) =
-    (,)
-
-
-px : Int -> String
-px s =
-    toString s ++ "px"
 
 
 view : Model -> Html Msg
@@ -154,22 +148,22 @@ view model =
         PreGame ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height ] ]
                     [ Element.toHtml <|
-                        collage width
-                            height
-                            [ filled black (rect width height), Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to start")) ]
+                        collage Utility.width
+                            Utility.height
+                            [ filled black (rect Utility.width Utility.height), Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to start")) ]
                     ]
                 ]
 
         InGame ({ position, clicked, objects } as model) ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ] ]
                     [ Element.toHtml <|
-                        collage width
-                            height
-                            ([ filled black (rect width height)
+                        collage Utility.width
+                            Utility.height
+                            ([ filled black (rect Utility.width Utility.height)
                              , move (correctOffset <| posToFloat position)
                                 (filled
                                     (if clicked > 0 then
@@ -179,6 +173,8 @@ view model =
                                     )
                                     (circle 50)
                                 )
+                             , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width 40)
+                             , drawHUD model
                              ]
                                 ++ map (\{ form } -> form) objects
                             )
@@ -188,13 +184,22 @@ view model =
         PostGame ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
-                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), onClick Click, Html.Attributes.style [ "width" => px width, "height" => px height, "cursor" => "none" ] ]
+                , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "Utility.width" => px Utility.width, "Utility.height" => px Utility.height ] ]
                     [ Element.toHtml <|
-                        collage width
-                            height
-                            [ filled black (rect width height), Collage.text <| Text.height 40 (color white <| fromString "Game Over"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again")) ]
+                        collage Utility.width
+                            Utility.height
+                            [ filled black (rect Utility.width Utility.height), Collage.text <| Text.height 40 (color white <| fromString "Game Over"), moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again")) ]
                     ]
                 ]
+
+
+drawHUD : GameModel -> Form
+drawHUD { score, lives } =
+    moveY (Utility.height / 2 - 10) <| Collage.text <| Text.height 18 <| monospace <| color white <| fromString <| "SCORE: " ++ toString score ++ "    LIVES: " ++ toString lives
+
+
+
+-- MAIN
 
 
 main : Program Never
@@ -211,61 +216,11 @@ main =
 -- UTILITY
 
 
-posToFloat : Position -> ( Float, Float )
-posToFloat p =
-    ( toFloat <| p.x, toFloat <| -p.y )
-
-
-correctOffset : ( Float, Float ) -> ( Float, Float )
-correctOffset =
-    (\( x, y ) -> ( x - width / 2, y + height / 2 ))
-
-
-offsetPosition : Decoder Position
-offsetPosition =
-    Json.Decode.object2 Position
-        ("offsetX" := Json.Decode.int)
-        ("offsetY" := Json.Decode.int)
-
-
-randPos : Random.Generator ( Float, Float )
-randPos =
-    Random.pair (Random.float (-width / 2 + 50) (width / 2 - 50)) (Random.float (-height / 2 + 50) (height / 2 - 50))
-
-
 newRandObject : Cmd Msg
 newRandObject =
     Random.generate NewObject randPos
 
 
-distance : ( Float, Float ) -> ( Float, Float ) -> Float
-distance ( x1, y1 ) ( x2, y2 ) =
-    sqrt ((x1 - x2) ^ 2 + (y1 - y2) ^ 2)
-
-
-objDist : ( Float, Float ) -> Object -> Float
-objDist ( x, y ) obj =
-    distance ( x, y ) obj.pos
-
-
-rightDist : Float -> Bool
-rightDist a =
-    if a < 25 then
-        True
-    else
-        False
-
-
-listDist : ( Float, Float ) -> List Object -> List Float
-listDist pos obj =
-    case head obj of
-        Nothing ->
-            []
-
-        Just o ->
-            case tail obj of
-                Just t ->
-                    [ objDist pos o ] ++ listDist pos t
-
-                Nothing ->
-                    []
+newSpawnTime : Cmd Msg
+newSpawnTime =
+    Random.generate NextSpawnTime <| Random.int 2 4
