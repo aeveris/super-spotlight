@@ -32,7 +32,7 @@ type Model
 
 
 type alias GameModel =
-    { position : Position, clicked : Time, objects : List Object, nextSpawn : Time, score : Int, lives : Int }
+    { position : Position, clicked : Time, objects : List Object, nextSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
 
 
 init : Model
@@ -42,7 +42,7 @@ init =
 
 initGameModel : Position -> Model
 initGameModel pos =
-    InGame { position = pos, clicked = 0, objects = [], nextSpawn = 5000 * millisecond, score = 0, lives = 5 }
+    InGame { position = pos, clicked = 0, objects = [], nextSpawn = 5000 * millisecond, score = 0, lives = 5, spawnNotification = 0 }
 
 
 
@@ -94,7 +94,7 @@ update msg model =
                     tickUpdate model
 
                 NewObject pos ->
-                    ( InGame { model | objects = makeObject pos foo :: model.objects }, Cmd.none )
+                    ( InGame { model | objects = makeObject pos good :: model.objects, spawnNotification = 300 * millisecond }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextSpawn = toFloat tm * second }, Cmd.none )
@@ -109,7 +109,7 @@ update msg model =
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
-tickUpdate ({ clicked, objects, nextSpawn } as gm) =
+tickUpdate ({ clicked, objects, nextSpawn, spawnNotification } as gm) =
     let
         updateTime : Time -> Time
         updateTime tm =
@@ -123,9 +123,24 @@ tickUpdate ({ clicked, objects, nextSpawn } as gm) =
             filter (\obj -> obj.ttl > 0) << map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
     in
         if nextSpawn == 0 then
-            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects }, Cmd.batch [ newRandObject, newSpawnTime ] )
+            ( InGame
+                { gm
+                    | clicked = updateTime clicked
+                    , objects = updateObjects objects
+                    , spawnNotification = updateTime spawnNotification
+                }
+            , Cmd.batch [ newRandObject, newSpawnTime ]
+            )
         else
-            ( InGame { gm | clicked = updateTime clicked, objects = updateObjects objects, nextSpawn = nextSpawn - 100 * millisecond }, Cmd.none )
+            ( InGame
+                { gm
+                    | clicked = updateTime clicked
+                    , objects = updateObjects objects
+                    , nextSpawn = nextSpawn - 100 * millisecond
+                    , spawnNotification = updateTime spawnNotification
+                }
+            , Cmd.none
+            )
 
 
 subscriptions : Model -> Sub Msg
@@ -156,7 +171,7 @@ view model =
                     ]
                 ]
 
-        InGame ({ position, clicked, objects } as model) ->
+        InGame ({ position, clicked, objects, spawnNotification } as model) ->
             div []
                 [ h1 [] [ Html.text "Super Spotlight" ]
                 , div [ on "mousemove" (Json.Decode.map MouseMove offsetPosition), on "click" (Json.Decode.map Click offsetPosition), Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ] ]
@@ -171,12 +186,16 @@ view model =
                                      else
                                         white
                                     )
-                                    (circle 50)
+                                    (circle 80)
                                 )
-                             , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width 40)
+                             , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width hudBackground)
+                               -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
                              , drawHUD model
                              ]
                                 ++ map (\{ form } -> form) objects
+                                ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
+                                   , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
+                                   ]
                             )
                     ]
                 ]

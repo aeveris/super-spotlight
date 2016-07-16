@@ -18,6 +18,10 @@ height =
     800
 
 
+hudBackground =
+    40
+
+
 (=>) =
     (,)
 
@@ -61,7 +65,7 @@ objDist ( x, y ) obj =
 
 rightDist : Float -> Bool
 rightDist a =
-    if a < 25 then
+    if a < 20 then
         True
     else
         False
