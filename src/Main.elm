@@ -1,4 +1,4 @@
-module Main (..) where
+module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -88,6 +88,7 @@ type Msg
     | NewBadObject ( Float, Float )
     | NewVitalObject ( Float, Float )
     | NextSpawnTime Int
+    | NextSpawnTimeVit Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -127,6 +128,9 @@ update msg model =
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
 
+                NextSpawnTimeVit tm ->
+                    ( InGame { model | nextVitalSpawn = toFloat tm * second }, Cmd.none )
+
         PostGame score ->
             case msg of
                 Click pos ->
@@ -137,7 +141,7 @@ update msg model =
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
-tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification } as gm) =
+tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, nextVitalSpawn, spawnNotification } as gm) =
     let
         updateTime : Time -> Time
         updateTime tm =
@@ -155,17 +159,36 @@ tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects = updateObjects badObjects
+                    , badObjects =
+                        updateObjects badObjects
+                        -- , vitalObject = updateVital vitalObject
+                    , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
             , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime 2 4 ]
+            )
+        else if nextVitalSpawn == 0 then
+            ( InGame
+                { gm
+                    | clicked = updateTime clicked
+                    , goodObjects = updateObjects goodObjects
+                    , badObjects =
+                        updateObjects badObjects
+                        -- , vitalObject = updateVital vitalObject
+                    , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
+                    , spawnNotification = updateTime spawnNotification
+                }
+            , Cmd.batch [ newRandObject Vital, newSpawnTimeVit 5 10 ]
             )
         else
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects = updateObjects badObjects
+                    , badObjects =
+                        updateObjects badObjects
+                        -- , vitalObject = updateVital vitalObject
+                    , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
@@ -323,11 +346,10 @@ drawHUD { score, lifes } =
 
 preGameText : Form
 preGameText =
-    moveY 20 <|
-        Collage.group
-            [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
-            , moveY -50 (Collage.text <| Text.height 16 <| monospace (color white <| fromString "click to start"))
-            ]
+    Collage.group
+        [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
+        , moveY -50 (Collage.text <| Text.height 16 <| monospace (color white <| fromString "click to start"))
+        ]
 
 
 postGameText : Int -> Form
@@ -375,3 +397,8 @@ newRandObject ty =
 newSpawnTime : Int -> Int -> Cmd Msg
 newSpawnTime a b =
     Random.generate NextSpawnTime <| Random.int a b
+
+
+newSpawnTimeVit : Int -> Int -> Cmd Msg
+newSpawnTimeVit a b =
+    Random.generate NextSpawnTimeVit <| Random.int a b
