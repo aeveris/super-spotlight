@@ -142,7 +142,7 @@ update msg model =
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
-tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, nextVitalSpawn, spawnNotification } as gm) =
+tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, nextVitalSpawn, spawnNotification, lifes, score } as gm) =
     let
         updateTime : Time -> Time
         updateTime tm =
@@ -157,9 +157,36 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
 
         updateVital : Maybe Object -> Maybe Object
         updateVital =
-            Maybe.map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
+            (\obj ->
+                case obj of
+                    Nothing ->
+                        Nothing
+
+                    Just obj ->
+                        if obj.ttl == 0 then
+                            Nothing
+                        else
+                            Just obj
+            )
+                << Maybe.map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
+
+        updateLifes : Maybe Object -> Int -> Int
+        updateLifes obj lifes =
+            case obj of
+                Nothing ->
+                    lifes
+
+                Just o ->
+                    if o.ttl - 100 == 0 then
+                        lifes - 1
+                    else
+                        lifes
     in
-        if nextGoodSpawn == 0 then
+        if lifes <= 0 then
+            ( PostGame score
+            , Cmd.none
+            )
+        else if nextGoodSpawn == 0 then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
@@ -168,6 +195,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                     , vitalObject = updateVital vitalObject
                     , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
+                    , lifes = updateLifes vitalObject lifes
                 }
             , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime Good 2 4 ]
             )
@@ -176,10 +204,12 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects = updateObjects badObjects
-                    , vitalObject = updateVital vitalObject
+                    , badObjects =
+                        updateObjects badObjects
+                        -- , vitalObject = updateVital vitalObject
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
+                    , lifes = updateLifes vitalObject lifes
                 }
             , Cmd.batch [ newRandObject Vital, newSpawnTime Vital 5 10 ]
             )
@@ -193,6 +223,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                     , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
+                    , lifes = updateLifes vitalObject lifes
                 }
             , Cmd.none
             )
@@ -231,7 +262,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, l
             , Cmd.none
             )
         else if clickedBadObj then
-            if lifes == 1 then
+            if lifes <= 1 then
                 ( PostGame score
                 , Cmd.none
                 )
