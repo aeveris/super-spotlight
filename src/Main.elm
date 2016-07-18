@@ -33,7 +33,7 @@ type Model
 
 type alias GameModel =
     { position : Position, clicked : Time, goodObjects : List Object, badObjects : List Object,
-    nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
+    nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lifes : Int, spawnNotification : Time }
 
 
 type ObjType
@@ -48,7 +48,7 @@ init =
 
 initGameModel : Position -> Model
 initGameModel pos =
-    InGame { position = pos, clicked = 0, goodObjects = [], badObjects = [], nextGoodSpawn = 0, nextBadSpawn = 0, score = 0, lives = 5, spawnNotification = 0 }
+    InGame { position = pos, clicked = 0, goodObjects = [], badObjects = [], nextGoodSpawn = 0, nextBadSpawn = 0, score = 0, lifes = 5, spawnNotification = 0 }
 
 
 
@@ -146,13 +146,14 @@ tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification
             )
 
 clickUpdate : GameModel -> (Model, Cmd Msg)
-clickUpdate ( { position, clicked, goodObjects, score } as gm ) =
+clickUpdate ( { position, clicked, goodObjects, badObjects, score, lifes } as gm ) =
   let
     clickedGoodObj =
-      if any rightDist (listDist (correctOffset (posToFloat position)) goodObjects) then
-        True
-      else
-        False
+       any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
+
+    clickedBadObj =
+      any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
+
 
     vanishObject : List Object -> List Object
     vanishObject =
@@ -163,14 +164,29 @@ clickUpdate ( { position, clicked, goodObjects, score } as gm ) =
   if clickedGoodObj then
   ( InGame
       { gm
-          | clicked = (millisecond * 300)
-          , score = score + 1
+          | score = score + 1
           , goodObjects = vanishObject goodObjects
 
       }
   , Cmd.none
   )
   else
+    if clickedBadObj then
+      if lifes == 1 then
+        ( PostGame
+        , Cmd.none
+        )
+      else
+        ( InGame
+            { gm
+                | clicked = (millisecond * 300)
+                , lifes = lifes - 1
+                , badObjects = vanishObject badObjects
+
+            }
+        , Cmd.none
+        )
+    else
     ( InGame
         { gm
             | clicked = clicked
@@ -263,7 +279,7 @@ inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as
 
 
 drawHUD : GameModel -> Form
-drawHUD { score, lives } =
+drawHUD { score, lifes } =
     moveY (Utility.height / 2 - 10) <|
         Collage.text <|
             Text.height 18 <|
@@ -272,8 +288,8 @@ drawHUD { score, lives } =
                         fromString <|
                             "SCORE: "
                                 ++ toString score
-                                ++ "    LIVES: "
-                                ++ toString lives
+                                ++ "    LIFES: "
+                                ++ toString lifes
 
 
 preGameText : Form
