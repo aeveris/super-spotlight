@@ -35,6 +35,11 @@ type alias GameModel =
     { position : Position, clicked : Time, goodObjects : List Object, badObjects : List Object, nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
 
 
+type ObjType
+    = Good
+    | Bad
+
+
 init : Model
 init =
     PreGame
@@ -55,7 +60,8 @@ type Msg
     | MouseMove Position
     | Click Position
     | Tick Time
-    | NewObject ( Float, Float )
+    | NewGoodObject ( Float, Float )
+    | NewBadObject ( Float, Float )
     | NextSpawnTime Int
 
 
@@ -93,8 +99,11 @@ update msg model =
                 Tick _ ->
                     tickUpdate model
 
-                NewObject pos ->
+                NewGoodObject pos ->
                     ( InGame { model | goodObjects = makeObject pos good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
+
+                NewBadObject pos ->
+                    ( InGame { model | badObjects = makeObject pos bad :: model.badObjects }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
@@ -109,7 +118,7 @@ update msg model =
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
-tickUpdate ({ clicked, goodObjects, nextGoodSpawn, spawnNotification } as gm) =
+tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification } as gm) =
     let
         updateTime : Time -> Time
         updateTime tm =
@@ -127,15 +136,17 @@ tickUpdate ({ clicked, goodObjects, nextGoodSpawn, spawnNotification } as gm) =
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
+                    , badObjects = updateObjects badObjects
                     , spawnNotification = updateTime spawnNotification
                 }
-            , Cmd.batch [ newRandObject, newSpawnTime 2 4 ]
+            , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime 2 4 ]
             )
         else
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
+                    , badObjects = updateObjects badObjects
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
@@ -213,7 +224,7 @@ postGameSite =
 
 
 inGameSite : GameModel -> Html Msg
-inGameSite ({ position, clicked, goodObjects, spawnNotification } as model) =
+inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as model) =
     div []
         [ h1 [] [ Html.text "Super Spotlight" ]
         , div
@@ -238,7 +249,7 @@ inGameSite ({ position, clicked, goodObjects, spawnNotification } as model) =
                        -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
                      , drawHUD model
                      ]
-                        ++ map (\{ form } -> form) goodObjects
+                        ++ map (\{ form } -> form) (goodObjects ++ badObjects)
                         ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
                            , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
                            ]
@@ -279,9 +290,14 @@ main =
 -- UTILITY
 
 
-newRandObject : Cmd Msg
-newRandObject =
-    Random.generate NewObject randPos
+newRandObject : ObjType -> Cmd Msg
+newRandObject ty =
+    case ty of
+        Good ->
+            Random.generate NewGoodObject randPos
+
+        Bad ->
+            Random.generate NewBadObject randPos
 
 
 newSpawnTime : Int -> Int -> Cmd Msg
