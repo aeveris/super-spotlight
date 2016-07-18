@@ -172,52 +172,29 @@ view : Model -> Html Msg
 view model =
     case model of
         PreGame ->
-            preGameSite
+            gameSite preGameText
 
         InGame model ->
             inGameSite model
 
         PostGame ->
-            postGameSite
+            gameSite postGameText
 
 
-preGameSite : Html Msg
-preGameSite =
-    div []
+gameSite : Form -> Html Msg
+gameSite f =
+    div [ Html.Attributes.style [ "text-align" => "center" ] ]
         [ h1 [] [ Html.text "Super Spotlight" ]
         , div
             [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
             , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height ]
+            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "margin-left" => "auto", "margin-right" => "auto" ]
             ]
             [ Element.toHtml <|
                 collage Utility.width
                     Utility.height
                     [ filled black (rect Utility.width Utility.height)
-                    , Collage.text <|
-                        Text.height 40 (color white <| fromString "Super Spotlight")
-                    , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
-                    ]
-            ]
-        ]
-
-
-postGameSite : Html Msg
-postGameSite =
-    div []
-        [ h1 [] [ Html.text "Super Spotlight" ]
-        , div
-            [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
-            , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "Utility.width" => px Utility.width, "Utility.height" => px Utility.height ]
-            ]
-            [ Element.toHtml <|
-                collage Utility.width
-                    Utility.height
-                    [ filled black (rect Utility.width Utility.height)
-                    , Collage.text <|
-                        Text.height 40 (color white <| fromString "Game Over")
-                    , moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again"))
+                    , f
                     ]
             ]
         ]
@@ -225,12 +202,12 @@ postGameSite =
 
 inGameSite : GameModel -> Html Msg
 inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as model) =
-    div []
+    div [ Html.Attributes.style [ "text-align" => "center" ] ]
         [ h1 [] [ Html.text "Super Spotlight" ]
         , div
             [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
             , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ]
+            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
             ]
             [ Element.toHtml <|
                 collage Utility.width
@@ -270,6 +247,23 @@ drawHUD { score, lives } =
                                 ++ toString score
                                 ++ "    LIVES: "
                                 ++ toString lives
+
+
+preGameText : Form
+preGameText =
+    Collage.group
+        [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
+        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+        ]
+
+
+postGameText : Form
+postGameText =
+    Collage.group
+        [ Collage.text <|
+            Text.height 40 (color white <| fromString "Super Spotlight")
+        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+        ]
 
 
 
