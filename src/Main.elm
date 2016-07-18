@@ -193,20 +193,23 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                     , goodObjects = updateObjects goodObjects
                     , badObjects = updateObjects badObjects
                     , vitalObject = updateVital vitalObject
-                    , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
+                    , nextVitalSpawn =
+                        if nextVitalSpawn > 0 then
+                            nextVitalSpawn - 100 * millisecond
+                        else
+                            nextVitalSpawn
                     , spawnNotification = updateTime spawnNotification
                     , lifes = updateLifes vitalObject lifes
                 }
             , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime Good 2 4 ]
             )
-        else if nextVitalSpawn == 0 then
+        else if nextVitalSpawn == 0 && vitalObject == Nothing then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects =
-                        updateObjects badObjects
-                        -- , vitalObject = updateVital vitalObject
+                    , badObjects = updateObjects badObjects
+                    , vitalObject = updateVital vitalObject
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                     , lifes = updateLifes vitalObject lifes
@@ -220,7 +223,11 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                     , goodObjects = updateObjects goodObjects
                     , badObjects = updateObjects badObjects
                     , vitalObject = updateVital vitalObject
-                    , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
+                    , nextVitalSpawn =
+                        if nextVitalSpawn > 0 then
+                            nextVitalSpawn - 100 * millisecond
+                        else
+                            nextVitalSpawn
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                     , lifes = updateLifes vitalObject lifes
