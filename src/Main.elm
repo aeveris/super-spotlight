@@ -197,13 +197,24 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
 
 
 clickUpdate : GameModel -> ( Model, Cmd Msg )
-clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm) =
+clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, lifes } as gm) =
     let
+        clickedGoodObj : Bool
         clickedGoodObj =
             any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
 
+        clickedBadObj : Bool
         clickedBadObj =
             any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
+
+        clickedVitalObj : Bool
+        clickedVitalObj =
+            case vitalObject of
+                Nothing ->
+                    False
+
+                Just obj ->
+                    rightDist <| objDist (posToFloat position) obj
 
         vanishObject : List Object -> List Object
         vanishObject =
@@ -212,7 +223,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm)
         if clickedGoodObj then
             ( InGame
                 { gm
-                    | score = score + 1
+                    | score = score + 50
                     , goodObjects = vanishObject goodObjects
                 }
             , Cmd.none
@@ -231,6 +242,14 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm)
                     }
                 , Cmd.none
                 )
+        else if clickedVitalObj then
+            ( InGame
+                { gm
+                    | score = score + 100
+                    , vitalObject = Nothing
+                }
+            , Cmd.none
+            )
         else
             ( InGame
                 { gm
