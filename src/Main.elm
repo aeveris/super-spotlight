@@ -323,10 +323,11 @@ drawHUD { score, lifes } =
 
 preGameText : Form
 preGameText =
-    Collage.group
-        [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
-        , moveY -50 (Collage.text <| Text.height 16 <| monospace (color white <| fromString "click to start"))
-        ]
+    moveY 20 <|
+        Collage.group
+            [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
+            , moveY -50 (Collage.text <| Text.height 16 <| monospace (color white <| fromString "click to start"))
+            ]
 
 
 postGameText : Int -> Form
