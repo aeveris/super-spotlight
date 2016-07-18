@@ -38,6 +38,7 @@ type alias GameModel =
     , badObjects : List Object
     , nextGoodSpawn : Time
     , nextBadSpawn : Time
+    , nextVitalSpawn : Time
     , score : Int
     , lifes : Int
     , spawnNotification : Time
@@ -47,6 +48,7 @@ type alias GameModel =
 type ObjType
     = Good
     | Bad
+    | Vital
 
 
 init : Model
@@ -56,7 +58,18 @@ init =
 
 initGameModel : Position -> Model
 initGameModel pos =
-    InGame { position = pos, clicked = 0, goodObjects = [], badObjects = [], nextGoodSpawn = 0, nextBadSpawn = 0, score = 0, lifes = 5, spawnNotification = 0 }
+    InGame
+        { position = pos
+        , clicked = 0
+        , goodObjects = []
+        , badObjects = []
+        , nextGoodSpawn = 0
+        , nextBadSpawn = 0
+        , nextVitalSpawn = 0
+        , score = 0
+        , lifes = 5
+        , spawnNotification = 0
+        }
 
 
 
@@ -71,6 +84,7 @@ type Msg
     | Tick Time
     | NewGoodObject ( Float, Float )
     | NewBadObject ( Float, Float )
+    | NewVitalObject ( Float, Float )
     | NextSpawnTime Int
     | NextSpawnTimeVit Int
 
@@ -180,15 +194,15 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
 clickUpdate : GameModel -> ( Model, Cmd Msg )
 clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, lifes } as gm) =
     let
-        clickedGoodObj : List Object -> Bool
+        clickedGoodObj : Bool
         clickedGoodObj =
             any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
 
-        clickedBadObj : List Object -> Bool
+        clickedBadObj : Bool
         clickedBadObj =
             any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
 
-        clickedVitalObj : Maybe Object -> Bool
+        clickedVitalObj : Bool
         clickedVitalObj =
             case vitalObject of
                 Nothing ->
