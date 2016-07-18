@@ -118,13 +118,13 @@ update msg model =
                     tickUpdate model
 
                 NewGoodObject pos ->
-                    ( InGame { model | goodObjects = makeObject pos goodTtl good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
+                    ( InGame { model | goodObjects = makeObject pos goodTtl good :: model.goodObjects }, Cmd.none )
 
                 NewBadObject pos ->
                     ( InGame { model | badObjects = makeObject pos badTtl bad :: model.badObjects }, Cmd.none )
 
                 NewVitalObject pos ->
-                    ( InGame { model | vitalObject = Just <| makeObject pos goodTtl vital }, Cmd.none )
+                    ( InGame { model | vitalObject = Just <| makeObject pos goodTtl vital, spawnNotification = 300 * millisecond }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
@@ -234,11 +234,11 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, l
     let
         clickedGoodObj : Bool
         clickedGoodObj =
-            any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
+            listHit (correctOffset (posToFloat position)) goodObjects
 
         clickedBadObj : Bool
         clickedBadObj =
-            any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
+            listHit (correctOffset (posToFloat position)) badObjects
 
         clickedVitalObj : Bool
         clickedVitalObj =
@@ -247,7 +247,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, l
                     False
 
                 Just obj ->
-                    rightDist <| objDist (correctOffset (posToFloat position)) obj
+                    objectHit (correctOffset (posToFloat position)) obj.pos
 
         vanishObject : List Object -> List Object
         vanishObject =
