@@ -7,6 +7,7 @@ There are (as of now) three types of objects:
 * objects with a dashed outline: click on these to gain points
 * objects with a dotted outline: avoid clicking on these objects as each of them will cost you a life
 * objects with a solid outline: you must click on these before they vanish - not only to gain a lot of points, but also to avoid losing a life
+
 All of these objects will appear at random, and only have a limited lifespan - so be quick!
 
 The game ends if the number of remaining lifes reaches 0. 
