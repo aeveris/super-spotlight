@@ -13,6 +13,7 @@ import Mouse exposing (Position)
 import Time exposing (Time, second, millisecond)
 import Random
 import List exposing (map, any, head, tail, filter)
+import Maybe exposing (map)
 
 
 -- CUSTOM MODULES
@@ -36,6 +37,7 @@ type alias GameModel =
     , clicked : Time
     , goodObjects : List Object
     , badObjects : List Object
+    , vitalObject : Maybe Object
     , nextGoodSpawn : Time
     , nextBadSpawn : Time
     , nextVitalSpawn : Time
@@ -63,6 +65,7 @@ initGameModel pos =
         , clicked = 0
         , goodObjects = []
         , badObjects = []
+        , vitalObject = Nothing
         , nextGoodSpawn = 0
         , nextBadSpawn = 0
         , nextVitalSpawn = 0
@@ -95,7 +98,7 @@ update msg model =
         PreGame ->
             case msg of
                 Click pos ->
-                    ( initGameModel pos, newSpawnTime 2 4 )
+                    ( initGameModel pos, Cmd.batch [ newSpawnTime Good 2 4, newRandObject Vital ] )
 
                 _ ->
                     ( PreGame, Cmd.none )
@@ -115,10 +118,13 @@ update msg model =
                     tickUpdate model
 
                 NewGoodObject pos ->
-                    ( InGame { model | goodObjects = makeObject pos good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
+                    ( InGame { model | goodObjects = makeObject pos goodTtl good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
 
                 NewBadObject pos ->
-                    ( InGame { model | badObjects = makeObject pos bad :: model.badObjects }, Cmd.none )
+                    ( InGame { model | badObjects = makeObject pos badTtl bad :: model.badObjects }, Cmd.none )
+
+                NewVitalObject pos ->
+                    ( InGame { model | vitalObject = Just <| makeObject pos goodTtl vital }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
@@ -129,7 +135,7 @@ update msg model =
         PostGame score ->
             case msg of
                 Click pos ->
-                    ( initGameModel pos, newSpawnTime 2 4 )
+                    ( initGameModel pos, Cmd.batch [ newSpawnTime Good 2 4, newRandObject Vital ] )
 
                 _ ->
                     ( PostGame score, Cmd.none )
@@ -147,42 +153,43 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
 
         updateObjects : List Object -> List Object
         updateObjects =
-            filter (\obj -> obj.ttl > 0) << map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
+            filter (\obj -> obj.ttl > 0) << List.map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
+
+        updateVital : Maybe Object -> Maybe Object
+        updateVital =
+            Maybe.map (\obj -> { obj | ttl = obj.ttl - 100 * millisecond })
     in
         if nextGoodSpawn == 0 then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects =
-                        updateObjects badObjects
-                        -- , vitalObject = updateVital vitalObject
+                    , badObjects = updateObjects badObjects
+                    , vitalObject = updateVital vitalObject
                     , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
-            , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime 2 4 ]
+            , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime Good 2 4 ]
             )
         else if nextVitalSpawn == 0 then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects =
-                        updateObjects badObjects
-                        -- , vitalObject = updateVital vitalObject
+                    , badObjects = updateObjects badObjects
+                    , vitalObject = updateVital vitalObject
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
-            , Cmd.batch [ newRandObject Vital, newSpawnTimeVit 5 10 ]
+            , Cmd.batch [ newRandObject Vital, newSpawnTime Vital 5 10 ]
             )
         else
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
-                    , badObjects =
-                        updateObjects badObjects
-                        -- , vitalObject = updateVital vitalObject
+                    , badObjects = updateObjects badObjects
+                    , vitalObject = updateVital vitalObject
                     , nextVitalSpawn = nextVitalSpawn - 100 * millisecond
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
@@ -209,7 +216,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, l
                     False
 
                 Just obj ->
-                    rightDist <| objDist (posToFloat position) obj
+                    rightDist <| objDist (correctOffset (posToFloat position)) obj
 
         vanishObject : List Object -> List Object
         vanishObject =
@@ -301,38 +308,48 @@ gameSite f =
 
 
 inGameSite : GameModel -> Html Msg
-inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as model) =
-    div [ Html.Attributes.style [ "text-align" => "center" ] ]
-        [ h1 [] [ Html.text "Super Spotlight" ]
-        , div
-            [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
-            , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
-            ]
-            [ Element.toHtml <|
-                collage Utility.width
-                    Utility.height
-                    ([ filled black (rect Utility.width Utility.height)
-                     , move (correctOffset <| posToFloat position)
-                        (filled
-                            (if clicked > 0 then
-                                red
-                             else
-                                white
+inGameSite ({ position, clicked, goodObjects, badObjects, vitalObject, spawnNotification } as model) =
+    let
+        getVital : Maybe Object -> List Object
+        getVital obj =
+            case obj of
+                Just o ->
+                    [ o ]
+
+                Nothing ->
+                    []
+    in
+        div [ Html.Attributes.style [ "text-align" => "center" ] ]
+            [ h1 [] [ Html.text "Super Spotlight" ]
+            , div
+                [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
+                , on "click" (Json.Decode.map Click offsetPosition)
+                , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
+                ]
+                [ Element.toHtml <|
+                    collage Utility.width
+                        Utility.height
+                        ([ filled black (rect Utility.width Utility.height)
+                         , move (correctOffset <| posToFloat position)
+                            (filled
+                                (if clicked > 0 then
+                                    red
+                                 else
+                                    white
+                                )
+                                (circle 80)
                             )
-                            (circle 80)
+                         , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width hudBackground)
+                           -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
+                         , drawHUD model
+                         ]
+                            ++ List.map (\{ form } -> form) (goodObjects ++ badObjects ++ getVital vitalObject)
+                            ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
+                               , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
+                               ]
                         )
-                     , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width hudBackground)
-                       -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
-                     , drawHUD model
-                     ]
-                        ++ map (\{ form } -> form) (goodObjects ++ badObjects)
-                        ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
-                           , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
-                           ]
-                    )
+                ]
             ]
-        ]
 
 
 drawHUD : GameModel -> Form
@@ -395,12 +412,15 @@ newRandObject ty =
         Bad ->
             Random.generate NewBadObject randPos
 
-
-newSpawnTime : Int -> Int -> Cmd Msg
-newSpawnTime a b =
-    Random.generate NextSpawnTime <| Random.int a b
+        Vital ->
+            Random.generate NewVitalObject randPos
 
 
-newSpawnTimeVit : Int -> Int -> Cmd Msg
-newSpawnTimeVit a b =
-    Random.generate NextSpawnTimeVit <| Random.int a b
+newSpawnTime : ObjType -> Int -> Int -> Cmd Msg
+newSpawnTime ty a b =
+    case ty of
+        Vital ->
+            Random.generate NextSpawnTimeVit <| Random.int a b
+
+        _ ->
+            Random.generate NextSpawnTime <| Random.int a b
