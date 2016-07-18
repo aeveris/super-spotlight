@@ -220,7 +220,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, l
 
         vanishObject : List Object -> List Object
         vanishObject =
-            filter (\obj -> not (rightDist (objDist (correctOffset (posToFloat position)) obj)))
+            filter (\obj -> not <| objectHit (correctOffset (posToFloat position)) obj.pos)
     in
         if clickedGoodObj then
             ( InGame
