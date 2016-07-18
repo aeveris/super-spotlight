@@ -13,10 +13,25 @@ good : Form
 good =
     outlined (thickenLine <| dashed black) (rect 40 40)
 
+goodTtl : Time
+goodTtl =
+   6000 * millisecond
 
 bad : Form
 bad =
     outlined (thickenLine <| dotted black) (rect 40 40)
+
+badTtl : Time
+badTtl =
+   8000 * millisecond
+
+vital : Form
+vital =
+    outlined (thickenLine <| solid black) (rect 40 40)
+
+vitalTtl : Time
+vitalTtl =
+   6000 * millisecond
 
 
 thickenLine : LineStyle -> LineStyle
@@ -24,6 +39,6 @@ thickenLine =
     (\ls -> { ls | width = 2.0 })
 
 
-makeObject : ( Float, Float ) -> Form -> Object
-makeObject pos f =
-    Object pos (6000 * millisecond) (move pos f)
+makeObject : ( Float, Float ) -> Time -> Form -> Object
+makeObject pos t f =
+    Object pos t (move pos f)
