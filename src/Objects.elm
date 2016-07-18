@@ -11,12 +11,12 @@ type alias Object =
 
 good : Form
 good =
-    outlined (thickenLine <| solid black) (rect 40 40)
+    outlined (thickenLine <| dashed black) (rect 40 40)
 
 
 bad : Form
 bad =
-    outlined (thickenLine <| dashed red) (rect 40 40)
+    outlined (thickenLine <| dotted black) (rect 40 40)
 
 
 thickenLine : LineStyle -> LineStyle

@@ -36,6 +36,11 @@ type alias GameModel =
     nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
 
 
+type ObjType
+    = Good
+    | Bad
+
+
 init : Model
 init =
     PreGame
@@ -56,7 +61,8 @@ type Msg
     | MouseMove Position
     | Click Position
     | Tick Time
-    | NewObject ( Float, Float )
+    | NewGoodObject ( Float, Float )
+    | NewBadObject ( Float, Float )
     | NextSpawnTime Int
 
 
@@ -85,8 +91,11 @@ update msg model =
                 Tick _ ->
                     tickUpdate model
 
-                NewObject pos ->
+                NewGoodObject pos ->
                     ( InGame { model | goodObjects = makeObject pos good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
+
+                NewBadObject pos ->
+                    ( InGame { model | badObjects = makeObject pos bad :: model.badObjects }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
@@ -101,7 +110,7 @@ update msg model =
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
-tickUpdate ({ clicked, goodObjects, nextGoodSpawn, spawnNotification } as gm) =
+tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification } as gm) =
     let
         updateTime : Time -> Time
         updateTime tm =
@@ -119,15 +128,17 @@ tickUpdate ({ clicked, goodObjects, nextGoodSpawn, spawnNotification } as gm) =
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
+                    , badObjects = updateObjects badObjects
                     , spawnNotification = updateTime spawnNotification
                 }
-            , Cmd.batch [ newRandObject, newSpawnTime 2 4 ]
+            , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime 2 4 ]
             )
         else
             ( InGame
                 { gm
                     | clicked = updateTime clicked
                     , goodObjects = updateObjects goodObjects
+                    , badObjects = updateObjects badObjects
                     , nextGoodSpawn = nextGoodSpawn - 100 * millisecond
                     , spawnNotification = updateTime spawnNotification
                 }
@@ -188,65 +199,42 @@ view : Model -> Html Msg
 view model =
     case model of
         PreGame ->
-            preGameSite
+            gameSite preGameText
 
         InGame model ->
             inGameSite model
 
         PostGame ->
-            postGameSite
+            gameSite postGameText
 
 
-preGameSite : Html Msg
-preGameSite =
-    div []
+gameSite : Form -> Html Msg
+gameSite f =
+    div [ Html.Attributes.style [ "text-align" => "center" ] ]
         [ h1 [] [ Html.text "Super Spotlight" ]
         , div
             [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
             , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height ]
+            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "margin-left" => "auto", "margin-right" => "auto" ]
             ]
             [ Element.toHtml <|
                 collage Utility.width
                     Utility.height
                     [ filled black (rect Utility.width Utility.height)
-                    , Collage.text <|
-                        Text.height 40 (color white <| fromString "Super Spotlight")
-                    , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
-                    ]
-            ]
-        ]
-
-
-postGameSite : Html Msg
-postGameSite =
-    div []
-        [ h1 [] [ Html.text "Super Spotlight" ]
-        , div
-            [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
-            , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "Utility.width" => px Utility.width, "Utility.height" => px Utility.height ]
-            ]
-            [ Element.toHtml <|
-                collage Utility.width
-                    Utility.height
-                    [ filled black (rect Utility.width Utility.height)
-                    , Collage.text <|
-                        Text.height 40 (color white <| fromString "Game Over")
-                    , moveY -50 (Collage.text <| monospace (color white <| fromString "click to play again"))
+                    , f
                     ]
             ]
         ]
 
 
 inGameSite : GameModel -> Html Msg
-inGameSite ({ position, clicked, goodObjects, spawnNotification } as model) =
-    div []
+inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as model) =
+    div [ Html.Attributes.style [ "text-align" => "center" ] ]
         [ h1 [] [ Html.text "Super Spotlight" ]
         , div
             [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
             , on "click" (Json.Decode.map Click offsetPosition)
-            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none" ]
+            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
             ]
             [ Element.toHtml <|
                 collage Utility.width
@@ -265,7 +253,7 @@ inGameSite ({ position, clicked, goodObjects, spawnNotification } as model) =
                        -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
                      , drawHUD model
                      ]
-                        ++ map (\{ form } -> form) goodObjects
+                        ++ map (\{ form } -> form) (goodObjects ++ badObjects)
                         ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
                            , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
                            ]
@@ -288,6 +276,23 @@ drawHUD { score, lives } =
                                 ++ toString lives
 
 
+preGameText : Form
+preGameText =
+    Collage.group
+        [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
+        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+        ]
+
+
+postGameText : Form
+postGameText =
+    Collage.group
+        [ Collage.text <|
+            Text.height 40 (color white <| fromString "Super Spotlight")
+        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+        ]
+
+
 
 -- MAIN
 
@@ -306,9 +311,14 @@ main =
 -- UTILITY
 
 
-newRandObject : Cmd Msg
-newRandObject =
-    Random.generate NewObject randPos
+newRandObject : ObjType -> Cmd Msg
+newRandObject ty =
+    case ty of
+        Good ->
+            Random.generate NewGoodObject randPos
+
+        Bad ->
+            Random.generate NewBadObject randPos
 
 
 newSpawnTime : Int -> Int -> Cmd Msg
