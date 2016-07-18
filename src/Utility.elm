@@ -15,7 +15,7 @@ width =
 
 
 height =
-    800
+    500
 
 
 hudBackground =

@@ -32,7 +32,8 @@ type Model
 
 
 type alias GameModel =
-    { position : Position, clicked : Time, goodObjects : List Object, badObjects : List Object, nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
+    { position : Position, clicked : Time, goodObjects : List Object, badObjects : List Object,
+    nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lives : Int, spawnNotification : Time }
 
 
 init : Model
@@ -79,16 +80,7 @@ update msg model =
                     ( InGame { model | position = pos }, Cmd.none )
 
                 Click _ ->
-                    ( InGame
-                        { model
-                            | clicked =
-                                if any rightDist (listDist (correctOffset (posToFloat position)) goodObjects) then
-                                    (millisecond * 300)
-                                else
-                                    clicked
-                        }
-                    , Cmd.none
-                    )
+                    clickUpdate model
 
                 Tick _ ->
                     tickUpdate model
@@ -141,6 +133,41 @@ tickUpdate ({ clicked, goodObjects, nextGoodSpawn, spawnNotification } as gm) =
                 }
             , Cmd.none
             )
+
+clickUpdate : GameModel -> (Model, Cmd Msg)
+clickUpdate ( { position, clicked, goodObjects, score } as gm ) =
+  let
+    clickedGoodObj =
+      if any rightDist (listDist (correctOffset (posToFloat position)) goodObjects) then
+        True
+      else
+        False
+
+    vanishObject : List Object -> List Object
+    vanishObject =
+      filter (\obj -> not (rightDist( objDist (correctOffset (posToFloat position)) obj)))
+
+
+ in
+  if clickedGoodObj then
+  ( InGame
+      { gm
+          | clicked = (millisecond * 300)
+          , score = score + 1
+          , goodObjects = vanishObject goodObjects
+
+      }
+  , Cmd.none
+  )
+  else
+    ( InGame
+        { gm
+            | clicked = clicked
+
+        }
+    , Cmd.none
+    )
+
 
 
 subscriptions : Model -> Sub Msg
