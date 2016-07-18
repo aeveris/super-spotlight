@@ -11,6 +11,6 @@ All of these objects will appear at random, and only have a limited lifespan - s
 
 The game ends if the number of remaining lifes reaches 0. 
 
-## Play here
+## Play where?
 
 Click [here](https://aeveris.github.io/super-spotlight/spotlight.html) to play the game.
