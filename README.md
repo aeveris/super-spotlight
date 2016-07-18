@@ -2,7 +2,7 @@
 
 ## Description
 
-This is an extremely ~~amazing~~ simple search game, where your objective is to find objects using your mouse and clicking on them to increase your score.
+This is an extremely simple search game, where your objective is to find objects using your mouse and clicking on them to increase your score.
 There are (as of now) three types of objects:
 * objects with a dashed outline: click on these to gain points
 * objects with a dotted outline: avoid clicking on these objects as each of them will cost you a life
