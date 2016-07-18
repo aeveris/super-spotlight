@@ -28,12 +28,20 @@ import Utility exposing (..)
 type Model
     = PreGame
     | InGame GameModel
-    | PostGame
+    | PostGame Int
 
 
 type alias GameModel =
-    { position : Position, clicked : Time, goodObjects : List Object, badObjects : List Object,
-    nextGoodSpawn : Time, nextBadSpawn : Time, score : Int, lifes : Int, spawnNotification : Time }
+    { position : Position
+    , clicked : Time
+    , goodObjects : List Object
+    , badObjects : List Object
+    , nextGoodSpawn : Time
+    , nextBadSpawn : Time
+    , score : Int
+    , lifes : Int
+    , spawnNotification : Time
+    }
 
 
 type ObjType
@@ -100,13 +108,13 @@ update msg model =
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
 
-        PostGame ->
+        PostGame score ->
             case msg of
                 Click pos ->
                     ( initGameModel pos, newSpawnTime 2 4 )
 
                 _ ->
-                    ( PostGame, Cmd.none )
+                    ( PostGame score, Cmd.none )
 
 
 tickUpdate : GameModel -> ( Model, Cmd Msg )
@@ -145,56 +153,49 @@ tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification
             , Cmd.none
             )
 
-clickUpdate : GameModel -> (Model, Cmd Msg)
-clickUpdate ( { position, clicked, goodObjects, badObjects, score, lifes } as gm ) =
-  let
-    clickedGoodObj =
-       any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
 
-    clickedBadObj =
-      any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
+clickUpdate : GameModel -> ( Model, Cmd Msg )
+clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm) =
+    let
+        clickedGoodObj =
+            any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
 
+        clickedBadObj =
+            any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
 
-    vanishObject : List Object -> List Object
-    vanishObject =
-      filter (\obj -> not (rightDist( objDist (correctOffset (posToFloat position)) obj)))
-
-
- in
-  if clickedGoodObj then
-  ( InGame
-      { gm
-          | score = score + 1
-          , goodObjects = vanishObject goodObjects
-
-      }
-  , Cmd.none
-  )
-  else
-    if clickedBadObj then
-      if lifes == 1 then
-        ( PostGame
-        , Cmd.none
-        )
-      else
-        ( InGame
-            { gm
-                | clicked = (millisecond * 300)
-                , lifes = lifes - 1
-                , badObjects = vanishObject badObjects
-
-            }
-        , Cmd.none
-        )
-    else
-    ( InGame
-        { gm
-            | clicked = clicked
-
-        }
-    , Cmd.none
-    )
-
+        vanishObject : List Object -> List Object
+        vanishObject =
+            filter (\obj -> not (rightDist (objDist (correctOffset (posToFloat position)) obj)))
+    in
+        if clickedGoodObj then
+            ( InGame
+                { gm
+                    | score = score + 1
+                    , goodObjects = vanishObject goodObjects
+                }
+            , Cmd.none
+            )
+        else if clickedBadObj then
+            if lifes == 1 then
+                ( PostGame score
+                , Cmd.none
+                )
+            else
+                ( InGame
+                    { gm
+                        | clicked = (millisecond * 300)
+                        , lifes = lifes - 1
+                        , badObjects = vanishObject badObjects
+                    }
+                , Cmd.none
+                )
+        else
+            ( InGame
+                { gm
+                    | clicked = clicked
+                }
+            , Cmd.none
+            )
 
 
 subscriptions : Model -> Sub Msg
@@ -220,8 +221,8 @@ view model =
         InGame model ->
             inGameSite model
 
-        PostGame ->
-            gameSite postGameText
+        PostGame score ->
+            gameSite <| postGameText score
 
 
 gameSite : Form -> Html Msg
@@ -296,17 +297,19 @@ preGameText : Form
 preGameText =
     Collage.group
         [ Collage.text <| Text.height 40 (color white <| fromString "Super Spotlight")
-        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
+        , moveY -50 (Collage.text <| Text.height 16 <| monospace (color white <| fromString "click to start"))
         ]
 
 
-postGameText : Form
-postGameText =
-    Collage.group
-        [ Collage.text <|
-            Text.height 40 (color white <| fromString "Super Spotlight")
-        , moveY -50 (Collage.text <| monospace (color white <| fromString "click to start"))
-        ]
+postGameText : Int -> Form
+postGameText score =
+    moveY 20 <|
+        Collage.group
+            [ Collage.text <|
+                Text.height 40 (color white <| fromString "GAME OVER")
+            , moveY -40 (Collage.text <| Text.height 16 (color white <| fromString <| "final score: " ++ toString score))
+            , moveY -60 (Collage.text <| monospace (color white <| fromString "click to play again"))
+            ]
 
 
 
