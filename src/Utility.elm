@@ -3,7 +3,7 @@ module Utility exposing (..)
 import Mouse exposing (Position)
 import Json.Decode exposing (Decoder, (:=))
 import Random
-import List exposing (map, any, head, tail, filter)
+import List exposing (map, any, head, tail, filter, foldl)
 import Objects exposing (..)
 
 
@@ -69,6 +69,16 @@ rightDist a =
         True
     else
         False
+
+
+objectHit : ( Float, Float ) -> ( Float, Float ) -> Bool
+objectHit ( px, py ) ( ox, oy ) =
+    px <= ox + 20 && px >= ox - 20 && py <= oy + 20 && py >= oy - 20
+
+
+listHit : ( Float, Float ) -> List Object -> Bool
+listHit pos =
+    foldl (||) False << map (\obj -> objectHit pos obj.pos)
 
 
 listDist : ( Float, Float ) -> List Object -> List Float
