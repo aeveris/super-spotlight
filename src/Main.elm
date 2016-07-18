@@ -1,4 +1,4 @@
-module Main (..) where
+module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -36,10 +36,8 @@ type alias GameModel =
     , clicked : Time
     , goodObjects : List Object
     , badObjects : List Object
-    , vitalObject : Maybe Object
     , nextGoodSpawn : Time
     , nextBadSpawn : Time
-    , nextVitalSpawn : Time
     , score : Int
     , lifes : Int
     , spawnNotification : Time
@@ -49,7 +47,6 @@ type alias GameModel =
 type ObjType
     = Good
     | Bad
-    | Vital
 
 
 init : Model
@@ -59,19 +56,7 @@ init =
 
 initGameModel : Position -> Model
 initGameModel pos =
-    InGame
-        { position = pos
-        , clicked = 0
-        , goodObjects = []
-        , badObjects = []
-        , vitalObject = Nothing
-        , nextGoodSpawn = 0
-        , nextBadSpawn = 0
-        , nextVitalSpawn = 0
-        , score = 0
-        , lifes = 5
-        , spawnNotification = 0
-        }
+    InGame { position = pos, clicked = 0, goodObjects = [], badObjects = [], nextGoodSpawn = 0, nextBadSpawn = 0, score = 0, lifes = 5, spawnNotification = 0 }
 
 
 
@@ -86,7 +71,6 @@ type Msg
     | Tick Time
     | NewGoodObject ( Float, Float )
     | NewBadObject ( Float, Float )
-    | NewVitalObject ( Float, Float )
     | NextSpawnTime Int
 
 
@@ -96,7 +80,7 @@ update msg model =
         PreGame ->
             case msg of
                 Click pos ->
-                    ( initGameModel pos, Cmd.batch [ newSpawnTime 2 4, newRandObject Vital ] )
+                    ( initGameModel pos, newSpawnTime 2 4 )
 
                 _ ->
                     ( PreGame, Cmd.none )
@@ -116,13 +100,10 @@ update msg model =
                     tickUpdate model
 
                 NewGoodObject pos ->
-                    ( InGame { model | goodObjects = makeObject pos goodTtl good :: model.goodObjects }, Cmd.none )
+                    ( InGame { model | goodObjects = makeObject pos good :: model.goodObjects, spawnNotification = 300 * millisecond }, Cmd.none )
 
                 NewBadObject pos ->
-                    ( InGame { model | badObjects = makeObject pos badTtl bad :: model.badObjects }, Cmd.none )
-
-                NewVitalObject pos ->
-                    ( InGame { model | vitalObject = Just <| makeObject pos vitalTtl vital }, Cmd.none )
+                    ( InGame { model | badObjects = makeObject pos bad :: model.badObjects }, Cmd.none )
 
                 NextSpawnTime tm ->
                     ( InGame { model | nextGoodSpawn = toFloat tm * second }, Cmd.none )
@@ -174,13 +155,24 @@ tickUpdate ({ clicked, goodObjects, badObjects, nextGoodSpawn, spawnNotification
 
 
 clickUpdate : GameModel -> ( Model, Cmd Msg )
-clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm) =
+clickUpdate ({ position, clicked, goodObjects, badObjects, vitalObject, score, lifes } as gm) =
     let
+        clickedGoodObj : List Object -> Bool
         clickedGoodObj =
             any rightDist (listDist (correctOffset (posToFloat position)) goodObjects)
 
+        clickedBadObj : List Object -> Bool
         clickedBadObj =
             any rightDist (listDist (correctOffset (posToFloat position)) badObjects)
+
+        clickedVitalObj : Maybe Object -> Bool
+        clickedVitalObj =
+            case vitalObject of
+                Nothing ->
+                    False
+
+                Just obj ->
+                    rightDist <| objDist (posToFloat position) obj
 
         vanishObject : List Object -> List Object
         vanishObject =
@@ -189,7 +181,7 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm)
         if clickedGoodObj then
             ( InGame
                 { gm
-                    | score = score + 1
+                    | score = score + 50
                     , goodObjects = vanishObject goodObjects
                 }
             , Cmd.none
@@ -208,6 +200,14 @@ clickUpdate ({ position, clicked, goodObjects, badObjects, score, lifes } as gm)
                     }
                 , Cmd.none
                 )
+        else if clickedVitalObj then
+            ( InGame
+                { gm
+                    | score = score + 100
+                    , vitalObject = Nothing
+                }
+            , Cmd.none
+            )
         else
             ( InGame
                 { gm
@@ -264,47 +264,38 @@ gameSite f =
 
 
 inGameSite : GameModel -> Html Msg
-inGameSite ({ position, clicked, goodObjects, badObjects, vitalObject, spawnNotification } as model) =
-    let
-        getVitalObj =
-            case vitalObject of
-                Just obj ->
-                    [ obj ]
-
-                Nothing ->
-                    []
-    in
-        div [ Html.Attributes.style [ "text-align" => "center" ] ]
-            [ h1 [] [ Html.text "Super Spotlight" ]
-            , div
-                [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
-                , on "click" (Json.Decode.map Click offsetPosition)
-                , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
-                ]
-                [ Element.toHtml <|
-                    collage Utility.width
-                        Utility.height
-                        ([ filled black (rect Utility.width Utility.height)
-                         , move (correctOffset <| posToFloat position)
-                            (filled
-                                (if clicked > 0 then
-                                    red
-                                 else
-                                    white
-                                )
-                                (circle 80)
-                            )
-                         , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width hudBackground)
-                           -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
-                         , drawHUD model
-                         ]
-                            ++ map (\{ form } -> form) (goodObjects ++ badObjects ++ getVitalObj)
-                            ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
-                               , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
-                               ]
-                        )
-                ]
+inGameSite ({ position, clicked, goodObjects, badObjects, spawnNotification } as model) =
+    div [ Html.Attributes.style [ "text-align" => "center" ] ]
+        [ h1 [] [ Html.text "Super Spotlight" ]
+        , div
+            [ on "mousemove" (Json.Decode.map MouseMove offsetPosition)
+            , on "click" (Json.Decode.map Click offsetPosition)
+            , Html.Attributes.style [ "width" => px Utility.width, "height" => px Utility.height, "cursor" => "none", "margin-left" => "auto", "margin-right" => "auto" ]
             ]
+            [ Element.toHtml <|
+                collage Utility.width
+                    Utility.height
+                    ([ filled black (rect Utility.width Utility.height)
+                     , move (correctOffset <| posToFloat position)
+                        (filled
+                            (if clicked > 0 then
+                                red
+                             else
+                                white
+                            )
+                            (circle 80)
+                        )
+                     , moveY (Utility.height / 2 - 20) <| filled black (rect Utility.width hudBackground)
+                       -- Hintergrund für HUD (wird sonst vom Lichtkegel übermalt)
+                     , drawHUD model
+                     ]
+                        ++ map (\{ form } -> form) (goodObjects ++ badObjects)
+                        ++ [ move (correctOffset <| posToFloat position) <| group [ outlined (thickenLine <| solid black) (circle 20), outlined (solid black) (circle 1) ]
+                           , alpha (spawnNotification / 300) <| moveY -20 <| outlined (thickenLine <| solid green) (rect (Utility.width - 2) (Utility.height - hudBackground))
+                           ]
+                    )
+            ]
+        ]
 
 
 drawHUD : GameModel -> Form
@@ -367,9 +358,6 @@ newRandObject ty =
 
         Bad ->
             Random.generate NewBadObject randPos
-
-        Vital ->
-            Random.generate NewVitalObject randPos
 
 
 newSpawnTime : Int -> Int -> Cmd Msg
