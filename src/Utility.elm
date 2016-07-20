@@ -75,7 +75,7 @@ objectHit ( px, py ) ( ox, oy ) =
 
 listHit : ( Float, Float ) -> List Object -> Bool
 listHit pos =
-    any (\b -> b == True) << map (\obj -> objectHit pos obj.pos)
+    any (\obj -> objectHit pos obj.pos)
 
 
 listDist : ( Float, Float ) -> List Object -> List Float
