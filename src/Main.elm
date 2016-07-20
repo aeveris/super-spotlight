@@ -163,7 +163,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                         Nothing
 
                     Just obj ->
-                        if obj.ttl == 0 then
+                        if obj.ttl <= 0 then
                             Nothing
                         else
                             Just obj
@@ -177,7 +177,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                     lifes
 
                 Just o ->
-                    if o.ttl - 100 == 0 then
+                    if o.ttl - 100 <= 0 then
                         lifes - 1
                     else
                         lifes
@@ -186,7 +186,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
             ( PostGame score
             , Cmd.none
             )
-        else if nextGoodSpawn == 0 then
+        else if nextGoodSpawn <= 0 then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
@@ -203,7 +203,7 @@ tickUpdate ({ clicked, goodObjects, badObjects, vitalObject, nextGoodSpawn, next
                 }
             , Cmd.batch [ newRandObject Good, newRandObject Bad, newSpawnTime Good 2 4 ]
             )
-        else if nextVitalSpawn == 0 && vitalObject == Nothing then
+        else if nextVitalSpawn <= 0 && vitalObject == Nothing then
             ( InGame
                 { gm
                     | clicked = updateTime clicked
