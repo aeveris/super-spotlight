@@ -65,10 +65,7 @@ objDist ( x, y ) obj =
 
 rightDist : Float -> Bool
 rightDist a =
-    if a < 20 then
-        True
-    else
-        False
+    a < 20
 
 
 objectHit : ( Float, Float ) -> ( Float, Float ) -> Bool
@@ -78,19 +75,9 @@ objectHit ( px, py ) ( ox, oy ) =
 
 listHit : ( Float, Float ) -> List Object -> Bool
 listHit pos =
-    foldl (||) False << map (\obj -> objectHit pos obj.pos)
+    any (\b -> b == True) << map (\obj -> objectHit pos obj.pos)
 
 
 listDist : ( Float, Float ) -> List Object -> List Float
 listDist pos obj =
-    case head obj of
-        Nothing ->
-            []
-
-        Just o ->
-            case tail obj of
-                Just t ->
-                    [ objDist pos o ] ++ listDist pos t
-
-                Nothing ->
-                    []
+    map (objDist pos) obj
